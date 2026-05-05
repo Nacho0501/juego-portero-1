@@ -2,44 +2,40 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Super Portero Interactivo</title>
+    <title>Super Portero Interactivo - Versión Corregida</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #222; font-family: 'Arial Black', sans-serif; }
-        canvas { display: block; background: linear-gradient(to bottom, #1a4a1a, #2d8a2d); }
-        
+        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Arial Black', sans-serif; }
+        canvas { display: block; }
         #ui {
             position: absolute; top: 20px; width: 100%;
             display: flex; justify-content: space-around;
-            color: white; font-size: 40px; text-shadow: 3px 3px 5px black;
-            pointer-events: none;
+            color: white; font-size: 50px; text-shadow: 4px 4px 0px #000;
+            pointer-events: none; z-index: 5;
         }
-
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; color: white;
-            z-index: 10;
+            background: rgba(0,0,0,0.9); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; color: white; z-index: 10;
         }
-
         button {
-            padding: 20px 50px; font-size: 30px; cursor: pointer;
-            background: #ffcc00; border: none; border-radius: 15px;
-            font-weight: bold; transition: 0.3s;
+            padding: 25px 60px; font-size: 35px; cursor: pointer;
+            background: #00ffcc; border: none; border-radius: 50px;
+            box-shadow: 0 10px 0 #00886a; font-weight: bold;
         }
-
-        button:hover { transform: scale(1.1); background: #fff; }
+        .final-score { font-size: 45px; color: #ffcc00; margin: 20px; }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <div>TIEMPO: <span id="timer">60</span>s</div>
-        <div>PUNTOS: <span id="score">0</span></div>
+        <div>⏱️ <span id="timer">60</span>s</div>
+        <div>🏆 <span id="score">0</span></div>
     </div>
 
     <div id="overlay">
-        <h1 id="msg">¡SUPER PORTERO!</h1>
-        <button onclick="startGame()">EMPEZAR JUEGO</button>
+        <h1 id="msg" style="font-size: 70px;">¡SUPER PORTERO!</h1>
+        <div id="result" class="final-score"></div>
+        <button onclick="startGame()">EMPEZAR</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -51,13 +47,14 @@
     const timerEl = document.getElementById('timer');
     const overlay = document.getElementById('overlay');
     const msg = document.getElementById('msg');
+    const resultEl = document.getElementById('result');
 
-    let score = 0;
-    let timeLeft = 60;
-    let gameActive = false;
-    let particles = [];
+    let score = 0, timeLeft = 60, gameActive = false, particles = [];
+    let gameInterval;
 
-    // Ajustar tamaño
+    // Configuración Diana Móvil
+    let target = { x: 400, y: 300, r: 40, vx: 6, vy: 5 };
+
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -66,144 +63,125 @@
     resize();
 
     function startGame() {
-        score = 0;
-        timeLeft = 60;
-        gameActive = true;
+        score = 0; timeLeft = 60; gameActive = true;
         overlay.style.display = 'none';
         scoreEl.innerText = score;
-        
-        const countdown = setInterval(() => {
+        if(gameInterval) clearInterval(gameInterval);
+        gameInterval = setInterval(() => {
             timeLeft--;
             timerEl.innerText = timeLeft;
-            if (timeLeft <= 0) {
-                clearInterval(countdown);
-                endGame();
-            }
+            if (timeLeft <= 0) { clearInterval(gameInterval); endGame(); }
         }, 1000);
     }
 
     function endGame() {
         gameActive = false;
         overlay.style.display = 'flex';
-        msg.innerHTML = "¡TIEMPO AGOTADO!<br>PUNTUACIÓN: " + score;
+        msg.innerText = "¡TIEMPO!";
+        resultEl.innerText = "PUNTOS: " + score;
     }
 
-    function drawGoal() {
-        const w = canvas.width;
-        const h = canvas.height;
-        
-        // Césped (línea de fondo)
-        ctx.strokeStyle = "rgba(255,255,255,0.5)";
-        ctx.lineWidth = 5;
-        ctx.strokeRect(w*0.1, h*0.2, w*0.8, h*0.8);
+    function draw() {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0,0,w,h);
 
-        // La Portería (Postes)
+        // Fondo Campo
+        ctx.fillStyle = '#1a3317';
+        ctx.fillRect(0, 0, w, h);
+
+        const pW = w * 0.75, pH = h * 0.65;
+        const pX = (w - pW) / 2, pY = h * 0.7 - pH + 50;
+        const cornerSize = 100; // Tamaño cuadrado de las escuadras
+
+        // 1. Zonas Visuales (Escuadras Cuadradas)
+        ctx.fillStyle = "rgba(255, 215, 0, 0.3)"; 
+        ctx.fillRect(pX, pY, cornerSize, cornerSize); // Izq
+        ctx.fillRect(pX + pW - cornerSize, pY, cornerSize, cornerSize); // Der
+
+        // 2. Postes (30 pts)
+        ctx.fillStyle = "rgba(0, 255, 255, 0.15)";
+        ctx.fillRect(pX, pY + cornerSize, 70, pH - cornerSize); // Lateral izq
+        ctx.fillRect(pX + pW - 70, pY + cornerSize, 70, pH - cornerSize); // Lateral der
+
+        // 3. Marco y Red
+        ctx.strokeStyle = "rgba(255,255,255,0.2)";
+        ctx.strokeRect(pX, pY, pW, pH);
         ctx.strokeStyle = "white";
-        ctx.lineWidth = 15;
-        ctx.lineJoin = "round";
-        const pWidth = w * 0.6;
-        const pHeight = h * 0.6;
-        const pX = (w - pWidth) / 2;
-        const pY = h - pHeight - 50;
-
-        // Red
-        ctx.beginPath();
-        ctx.setLineDash([5, 15]);
-        ctx.lineWidth = 2;
-        for(let i=1; i<10; i++) {
-            ctx.moveTo(pX + (pWidth/10)*i, pY);
-            ctx.lineTo(pX + (pWidth/10)*i, pY + pHeight);
-            ctx.moveTo(pX, pY + (pHeight/10)*i);
-            ctx.lineTo(pX + pWidth, pY + (pHeight/10)*i);
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Marco principal
         ctx.lineWidth = 20;
-        ctx.strokeRect(pX, pY, pWidth, pHeight);
+        ctx.strokeRect(pX, pY, pW, pH);
 
-        // Escuadras (Visual)
-        ctx.fillStyle = "rgba(255, 204, 0, 0.4)";
-        ctx.beginPath();
-        ctx.arc(pX + 40, pY + 40, 60, 0, Math.PI * 2); // Izq
-        ctx.arc(pX + pWidth - 40, pY + 40, 60, 0, Math.PI * 2); // Der
-        ctx.fill();
-        
-        ctx.fillStyle = "white";
-        ctx.font = "20px Arial";
-        ctx.fillText("50 pts", pX + 15, pY + 45);
-        ctx.fillText("50 pts", pX + pWidth - 75, pY + 45);
+        // 4. Diana Móvil (Corrección de rebote dentro de la red)
+        if(gameActive) {
+            target.x += target.vx;
+            target.y += target.vy;
+
+            // Limites considerando el radio para que no se salga
+            if(target.x < pX + target.r + 15 || target.x > pX + pW - target.r - 15) target.vx *= -1;
+            if(target.y < pY + target.r + 15 || target.y > pY + pH - target.r - 15) target.vy *= -1;
+
+            ctx.shadowBlur = 20; ctx.shadowColor = "#ff0066";
+            ctx.fillStyle = "#ff0066";
+            ctx.beginPath(); ctx.arc(target.x, target.y, target.r, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "white"; ctx.font = "bold 25px Arial"; ctx.textAlign = "center";
+            ctx.fillText("60", target.x, target.y + 10);
+        }
     }
 
-    // Detección de impacto
     canvas.addEventListener('mousedown', (e) => {
         if (!gameActive) return;
-
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const x = e.clientX - rect.left, y = e.clientY - rect.top;
 
-        const pWidth = canvas.width * 0.6;
-        const pHeight = canvas.height * 0.6;
-        const pX = (canvas.width - pWidth) / 2;
-        const pY = canvas.height - pHeight - 50;
+        const pW = canvas.width * 0.75, pH = canvas.height * 0.65;
+        const pX = (canvas.width - pW) / 2, pY = canvas.height * 0.7 - pH + 50;
+        const cornerSize = 100;
 
-        let pointsGained = 0;
+        let pts = 0, col = "white";
 
-        // Verificar si está dentro de la portería
-        if (x > pX && x < pX + pWidth && y > pY && y < pY + pHeight) {
-            
-            // ¿Es escuadra? (Cerca de las esquinas superiores)
-            const distIzq = Math.hypot(x - (pX + 40), y - (pY + 40));
-            const distDer = Math.hypot(x - (pX + pWidth - 40), y - (pY + 40));
-
-            if (distIzq < 70 || distDer < 70) {
-                pointsGained = 50;
-                createParticles(x, y, "#ffcc00");
+        // Detección Diana
+        if (Math.hypot(x - target.x, y - target.y) < target.r + 10) {
+            pts = 60; col = "#ff0066";
+        } 
+        // Detección dentro de portería
+        else if (x > pX && x < pX + pW && y > pY && y < pY + pH) {
+            // Escuadras Cuadradas (Corrección)
+            if (y < pY + cornerSize) {
+                if (x < pX + cornerSize || x > pX + pW - cornerSize) {
+                    pts = 50; col = "#ffd700";
+                } else { pts = 10; }
+            } 
+            // Postes laterales
+            else if (x < pX + 80 || x > pX + pW - 80) {
+                pts = 30; col = "#00ffff";
             } else {
-                pointsGained = 10;
-                createParticles(x, y, "#00ff00");
+                pts = 10; col = "white";
             }
         }
 
-        score += pointsGained;
-        scoreEl.innerText = score;
+        if (pts > 0) {
+            score += pts; scoreEl.innerText = score;
+            createParticles(x, y, col);
+        }
     });
 
-    // Efectos visuales de explosión
     function createParticles(x, y, color) {
         for (let i = 0; i < 15; i++) {
-            particles.push({
-                x, y,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
-                life: 1.0,
-                color: color
-            });
+            particles.push({ x, y, vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15, life: 1.0, color });
         }
     }
 
     function update() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawGoal();
-
+        draw();
         particles.forEach((p, i) => {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life -= 0.02;
-            ctx.fillStyle = p.color;
-            ctx.globalAlpha = p.life;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 8, 0, Math.PI*2);
-            ctx.fill();
+            p.x += p.vx; p.y += p.vy; p.life -= 0.03;
+            ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI*2); ctx.fill();
             if (p.life <= 0) particles.splice(i, 1);
         });
         ctx.globalAlpha = 1;
-
         requestAnimationFrame(update);
     }
-
     update();
 </script>
 </body>
