@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Super Portero Interactivo</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; font-family: 'Arial Black', sans-serif; }
+        canvas { display: block; background: linear-gradient(to bottom, #1a4a1a, #2d8a2d); }
+        
+        #ui {
+            position: absolute; top: 20px; width: 100%;
+            display: flex; justify-content: space-around;
+            color: white; font-size: 40px; text-shadow: 3px 3px 5px black;
+            pointer-events: none;
+        }
+
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; color: white;
+            z-index: 10;
+        }
+
+        button {
+            padding: 20px 50px; font-size: 30px; cursor: pointer;
+            background: #ffcc00; border: none; border-radius: 15px;
+            font-weight: bold; transition: 0.3s;
+        }
+
+        button:hover { transform: scale(1.1); background: #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div>TIEMPO: <span id="timer">60</span>s</div>
+        <div>PUNTOS: <span id="score">0</span></div>
+    </div>
+
+    <div id="overlay">
+        <h1 id="msg">¡SUPER PORTERO!</h1>
+        <button onclick="startGame()">EMPEZAR JUEGO</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const timerEl = document.getElementById('timer');
+    const overlay = document.getElementById('overlay');
+    const msg = document.getElementById('msg');
+
+    let score = 0;
+    let timeLeft = 60;
+    let gameActive = false;
+    let particles = [];
+
+    // Ajustar tamaño
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function startGame() {
+        score = 0;
+        timeLeft = 60;
+        gameActive = true;
+        overlay.style.display = 'none';
+        scoreEl.innerText = score;
+        
+        const countdown = setInterval(() => {
+            timeLeft--;
+            timerEl.innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                endGame();
+            }
+        }, 1000);
+    }
+
+    function endGame() {
+        gameActive = false;
+        overlay.style.display = 'flex';
+        msg.innerHTML = "¡TIEMPO AGOTADO!<br>PUNTUACIÓN: " + score;
+    }
+
+    function drawGoal() {
+        const w = canvas.width;
+        const h = canvas.height;
+        
+        // Césped (línea de fondo)
+        ctx.strokeStyle = "rgba(255,255,255,0.5)";
+        ctx.lineWidth = 5;
+        ctx.strokeRect(w*0.1, h*0.2, w*0.8, h*0.8);
+
+        // La Portería (Postes)
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 15;
+        ctx.lineJoin = "round";
+        const pWidth = w * 0.6;
+        const pHeight = h * 0.6;
+        const pX = (w - pWidth) / 2;
+        const pY = h - pHeight - 50;
+
+        // Red
+        ctx.beginPath();
+        ctx.setLineDash([5, 15]);
+        ctx.lineWidth = 2;
+        for(let i=1; i<10; i++) {
+            ctx.moveTo(pX + (pWidth/10)*i, pY);
+            ctx.lineTo(pX + (pWidth/10)*i, pY + pHeight);
+            ctx.moveTo(pX, pY + (pHeight/10)*i);
+            ctx.lineTo(pX + pWidth, pY + (pHeight/10)*i);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Marco principal
+        ctx.lineWidth = 20;
+        ctx.strokeRect(pX, pY, pWidth, pHeight);
+
+        // Escuadras (Visual)
+        ctx.fillStyle = "rgba(255, 204, 0, 0.4)";
+        ctx.beginPath();
+        ctx.arc(pX + 40, pY + 40, 60, 0, Math.PI * 2); // Izq
+        ctx.arc(pX + pWidth - 40, pY + 40, 60, 0, Math.PI * 2); // Der
+        ctx.fill();
+        
+        ctx.fillStyle = "white";
+        ctx.font = "20px Arial";
+        ctx.fillText("50 pts", pX + 15, pY + 45);
+        ctx.fillText("50 pts", pX + pWidth - 75, pY + 45);
+    }
+
+    // Detección de impacto
+    canvas.addEventListener('mousedown', (e) => {
+        if (!gameActive) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const pWidth = canvas.width * 0.6;
+        const pHeight = canvas.height * 0.6;
+        const pX = (canvas.width - pWidth) / 2;
+        const pY = canvas.height - pHeight - 50;
+
+        let pointsGained = 0;
+
+        // Verificar si está dentro de la portería
+        if (x > pX && x < pX + pWidth && y > pY && y < pY + pHeight) {
+            
+            // ¿Es escuadra? (Cerca de las esquinas superiores)
+            const distIzq = Math.hypot(x - (pX + 40), y - (pY + 40));
+            const distDer = Math.hypot(x - (pX + pWidth - 40), y - (pY + 40));
+
+            if (distIzq < 70 || distDer < 70) {
+                pointsGained = 50;
+                createParticles(x, y, "#ffcc00");
+            } else {
+                pointsGained = 10;
+                createParticles(x, y, "#00ff00");
+            }
+        }
+
+        score += pointsGained;
+        scoreEl.innerText = score;
+    });
+
+    // Efectos visuales de explosión
+    function createParticles(x, y, color) {
+        for (let i = 0; i < 15; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1.0,
+                color: color
+            });
+        }
+    }
+
+    function update() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawGoal();
+
+        particles.forEach((p, i) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.02;
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.life;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 8, 0, Math.PI*2);
+            ctx.fill();
+            if (p.life <= 0) particles.splice(i, 1);
+        });
+        ctx.globalAlpha = 1;
+
+        requestAnimationFrame(update);
+    }
+
+    update();
+</script>
+</body>
+</html>
