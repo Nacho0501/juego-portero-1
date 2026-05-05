@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Super Portero Interactivo - Versión Corregida</title>
+    <title>Super Portero Interactivo - Versión Final</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050505; font-family: 'Arial Black', sans-serif; }
         canvas { display: block; }
@@ -52,8 +52,8 @@
     let score = 0, timeLeft = 60, gameActive = false, particles = [];
     let gameInterval;
 
-    // Configuración Diana Móvil
-    let target = { x: 400, y: 300, r: 40, vx: 6, vy: 5 };
+    // Configuración Diana Móvil (Velocidad reducida para niños)
+    let target = { x: 400, y: 300, r: 40, vx: 3.5, vy: 3 };
 
     function resize() {
         canvas.width = window.innerWidth;
@@ -92,16 +92,18 @@
         const pW = w * 0.75, pH = h * 0.65;
         const pX = (w - pW) / 2, pY = h * 0.7 - pH + 50;
         const cornerSize = 100; // Tamaño cuadrado de las escuadras
+        const frameWidth = 80; // Ancho de la zona de larguero/postes
 
-        // 1. Zonas Visuales (Escuadras Cuadradas)
-        ctx.fillStyle = "rgba(255, 215, 0, 0.3)"; 
+        // 1. Zonas Visuales (Escuadras)
+        ctx.fillStyle = "rgba(255, 215, 0, 0.4)"; 
         ctx.fillRect(pX, pY, cornerSize, cornerSize); // Izq
         ctx.fillRect(pX + pW - cornerSize, pY, cornerSize, cornerSize); // Der
 
-        // 2. Postes (30 pts)
+        // 2. Larguero y Postes (Ahora valen lo mismo: 30 pts)
         ctx.fillStyle = "rgba(0, 255, 255, 0.15)";
-        ctx.fillRect(pX, pY + cornerSize, 70, pH - cornerSize); // Lateral izq
-        ctx.fillRect(pX + pW - 70, pY + cornerSize, 70, pH - cornerSize); // Lateral der
+        ctx.fillRect(pX + cornerSize, pY, pW - (cornerSize * 2), frameWidth); // Larguero
+        ctx.fillRect(pX, pY + cornerSize, frameWidth, pH - cornerSize); // Poste izq
+        ctx.fillRect(pX + pW - frameWidth, pY + cornerSize, frameWidth, pH - cornerSize); // Poste der
 
         // 3. Marco y Red
         ctx.strokeStyle = "rgba(255,255,255,0.2)";
@@ -110,12 +112,11 @@
         ctx.lineWidth = 20;
         ctx.strokeRect(pX, pY, pW, pH);
 
-        // 4. Diana Móvil (Corrección de rebote dentro de la red)
+        // 4. Diana Móvil
         if(gameActive) {
             target.x += target.vx;
             target.y += target.vy;
 
-            // Limites considerando el radio para que no se salga
             if(target.x < pX + target.r + 15 || target.x > pX + pW - target.r - 15) target.vx *= -1;
             if(target.y < pY + target.r + 15 || target.y > pY + pH - target.r - 15) target.vy *= -1;
 
@@ -136,25 +137,27 @@
         const pW = canvas.width * 0.75, pH = canvas.height * 0.65;
         const pX = (canvas.width - pW) / 2, pY = canvas.height * 0.7 - pH + 50;
         const cornerSize = 100;
+        const frameWidth = 80;
 
         let pts = 0, col = "white";
 
         // Detección Diana
-        if (Math.hypot(x - target.x, y - target.y) < target.r + 10) {
+        if (Math.hypot(x - target.x, y - target.y) < target.r + 15) {
             pts = 60; col = "#ff0066";
         } 
         // Detección dentro de portería
         else if (x > pX && x < pX + pW && y > pY && y < pY + pH) {
-            // Escuadras Cuadradas (Corrección)
-            if (y < pY + cornerSize) {
-                if (x < pX + cornerSize || x > pX + pW - cornerSize) {
-                    pts = 50; col = "#ffd700";
-                } else { pts = 10; }
-            } 
-            // Postes laterales
-            else if (x < pX + 80 || x > pX + pW - 80) {
+            
+            // 1. Escuadras Cuadradas (50 pts)
+            if (y < pY + cornerSize && (x < pX + cornerSize || x > pX + pW - cornerSize)) {
+                pts = 50; col = "#ffd700";
+            }
+            // 2. Larguero y Postes (30 pts)
+            else if (y < pY + frameWidth || x < pX + frameWidth || x > pX + pW - frameWidth) {
                 pts = 30; col = "#00ffff";
-            } else {
+            }
+            // 3. Centro (10 pts)
+            else {
                 pts = 10; col = "white";
             }
         }
